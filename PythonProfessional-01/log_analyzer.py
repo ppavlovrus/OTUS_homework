@@ -117,6 +117,13 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
         output_file.writelines(template_content)
 
 
+def generate_report_filename():
+    now = datetime.now()
+    now_string = now.strftime("%Y-%m-%d_%H-%M-%S")
+    report_filename = "report_" + now_string + ".html"
+    return report_filename
+
+
 def main():
     time_start = datetime.now()
     file_path = 'C:\Common_Folder\Programming\PythonProjects\OTUS\Python Professional' \
@@ -124,10 +131,7 @@ def main():
                 '\\nginx-access-ui.log-20170630'
     d = create_url_dict(get_requests_time_from_logs(file_path))
     result_json = dict_to_json(d)
-    now = datetime.now()
-    now_string = now.strftime("%Y-%m-%d_%H-%M-%S")
-    report_filename = "report_" + now_string + ".html"
-    insert_json_into_html(result_json, "report_template.html", report_filename)
+    insert_json_into_html(result_json, "report_template.html", generate_report_filename())
     time_stop = datetime.now()
     print(time_stop, time_start)
 
