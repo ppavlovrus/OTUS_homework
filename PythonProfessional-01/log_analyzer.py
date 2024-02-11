@@ -7,7 +7,8 @@ from decimal import Decimal
 import statistics
 
 nginx_log_pattern = re.compile(
-    r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z \-]+\[.*\] "[A-Z]+ ([^\s\\]*) [^\s]* [0-9]* [0-9]*.* ([0-9\.]+$)')
+    r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z \-]+\[.*\] '
+    r'"[A-Z]+ ([^\s\\]*) [^\s]* [0-9]* [0-9]*.* ([0-9\.]+$)')
 
 log_file_name_pattern = re.compile(r'nginx-access-ui\.log-(\d{8})(\.gz)?$')
 
@@ -21,15 +22,17 @@ def find_most_recent_log_file(directory):
             valid_files.append(file_name)
 
     if valid_files:
-        dates = [datetime.strptime(log_file_name_pattern.match(f).group(1), '%Y%m%d') for f in valid_files]
+        dates = [datetime.strptime(log_file_name_pattern.match(f).group(1),
+                                   '%Y%m%d')
+                 for f in valid_files]
         most_recent_date = max(dates)
-        most_recent_file = 'nginx-access-ui.log-' + most_recent_date.strftime('%Y%m%d')
+        most_recent_file = 'nginx-access-ui.log-' + \
+                           most_recent_date.strftime('%Y%m%d')
 
         if most_recent_file + '.gz' in valid_files:
             return most_recent_file + '.gz'
         else:
             return most_recent_file
-
     else:
         return None
 
@@ -54,7 +57,8 @@ def get_requests_time_from_logs(file_path):
 def create_url_dict(filtered_log: (str, Decimal)):
     # Handling situation with new URL
     dict_input = collections.defaultdict(
-        lambda: [0, Decimal(0), Decimal(0), Decimal(0), Decimal(0), Decimal(0), [], Decimal(0)]
+        lambda: [0, Decimal(0), Decimal(0), Decimal(0),
+                 Decimal(0), Decimal(0), [], Decimal(0)]
     )
     number_of_requests = 0
     total_time_of_requests = Decimal(0)
@@ -92,8 +96,12 @@ def dict_to_json(dictionary):
     json_data = []
 
     for key, value in dictionary.items():
-        record = {"url": key, "count": value[0], "count_perc": float(value[1]), "time_sum": float(value[2]),
-                  "time_perc": float(value[3]), "time_avg": float(value[4]), "time_max": float(value[5]),
+        record = {"url": key, "count": value[0],
+                  "count_perc": float(value[1]),
+                  "time_sum": float(value[2]),
+                  "time_perc": float(value[3]),
+                  "time_avg": float(value[4]),
+                  "time_max": float(value[5]),
                   "time_med": float(value[6])}
         json_data.append(record)
     return json_data
@@ -131,7 +139,8 @@ def main():
                 '\\nginx-access-ui.log-20170630'
     d = create_url_dict(get_requests_time_from_logs(file_path))
     result_json = dict_to_json(d)
-    insert_json_into_html(result_json, "report_template.html", generate_report_filename())
+    insert_json_into_html(result_json, "report_template.html",
+                          generate_report_filename())
     time_stop = datetime.now()
     print(time_stop, time_start)
 
