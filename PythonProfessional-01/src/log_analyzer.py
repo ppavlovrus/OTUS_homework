@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import os
 import re
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 import statistics
 
 nginx_log_pattern = re.compile(
@@ -55,6 +55,7 @@ def get_requests_time_from_logs(file_path):
 
 
 def create_url_dict(filtered_log: (str, Decimal)):
+    two_places = Decimal(10) ** -2
     # Handling situation with new URL
     dict_input = collections.defaultdict(
         lambda: [0, Decimal(0), Decimal(0), Decimal(0),
@@ -70,21 +71,25 @@ def create_url_dict(filtered_log: (str, Decimal)):
         url_data = dict_input[url]
         # Total Requests for this URL
         url_data[0] += 1
-        # Percentile from all requests
-        url_data[1] = Decimal(url_data[0] * 100 / number_of_requests)
         # Total request time for this URL
         url_data[2] += time
-        # Percentile from all requests time
-        url_data[3] = Decimal(url_data[2] * 100 / total_time_of_requests)
         # Average request time
         url_data[4] = Decimal(url_data[2] / url_data[0])
         # Maximum request time
         url_data[5] = max(url_data[5], time)
         # Add request time to list with requests time for this particular URL
         url_data[6].append(time)
+
+    # Now we re-iterate our dictionary and calculate values
     dictionary_iterator = iter(dict_input.items())
     for _ in dict_input:
         key, value = next(dictionary_iterator)
+        # Percentile from all requests
+        value[1] = Decimal(value[0] * 100 / number_of_requests).quantize(two_places, ROUND_DOWN)
+        # Percentile from all requests time
+        value[3] = Decimal(value[2] * 100 / total_time_of_requests).quantize(two_places, ROUND_DOWN)
+        # Average request time
+        value[4] = Decimal(value[2] / value[0])
         value[6].sort()
         value[7] = statistics.median(value[6])
         value.pop(6)
