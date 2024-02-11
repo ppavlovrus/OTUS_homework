@@ -1,0 +1,10 @@
+Dictionary structure: key - URL.
+Value - list
+[total_reqs,
+percentile_from_all_reqs,
+req_time_sum,
+percentile_req_time_from_all,
+avg_req_time,
+Maximum request time,
+list of req times,
+median_req_time]
