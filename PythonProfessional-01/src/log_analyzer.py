@@ -134,8 +134,9 @@ def generate_report_filename():
 
 def main():
     time_start = datetime.now()
-    file_path = 'C:\Common_Folder\Programming\PythonProjects\OTUS\Python Professional' \
-                '\\01-Advanced basics\\01_advanced_basics\homework\logs' \
+    file_path = 'C:\\Common_Folder\\Programming\\PythonProjects\\OTUS' \
+                '\\Python Professional' \
+                '\\01-Advanced basics\\01_advanced_basics\\homework\\logs' \
                 '\\nginx-access-ui.log-20170630'
     d = create_url_dict(get_requests_time_from_logs(file_path))
     result_json = dict_to_json(d)
