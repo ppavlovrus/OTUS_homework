@@ -1,8 +1,11 @@
 import collections
 from datetime import datetime
+import gzip
 import json
 import os
 import re
+import sys
+from config import parse_config
 from decimal import Decimal, ROUND_DOWN
 import statistics
 
@@ -38,14 +41,18 @@ def find_most_recent_log_file(directory):
 
 
 def get_requests_time_from_logs(file_path):
+    def file_reader(f):
+        for line_from_file in f:
+            match_from_line = nginx_log_pattern.match(line_from_file)
+            if match_from_line:
+                yield match_from_line.group(1), Decimal(match_from_line.group(2))
     try:
-        with open(file_path, 'r') as log_file:
-            num = 0
-            for line in log_file:
-                match = nginx_log_pattern.match(line)
-                num += 1
-                if match:
-                    yield match.group(1), Decimal(match.group(2))
+        if file_path.endswith('.gz'):
+            with gzip.open(file_path, 'rt') as log_file:
+                yield from file_reader(log_file)
+        else:
+            with open(file_path, 'r') as log_file:
+                yield from file_reader(log_file)
     except FileNotFoundError:
         print(f"Could not find file at path: {file_path}")
         return
@@ -116,18 +123,25 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
     table_json = json.dumps(json_data, indent=4)
 
     # Open the template file and read its content
-    with open(template_file_path, 'r') as template_file:
-        template_content = template_file.readlines()
-    line_number = 0
-    for i, line in enumerate(template_content):
-        if 'var table =' in line:
-            line_number = i
-            break
-
-    template_content[line_number] = f"var table ={table_json};\n"
-    # Write report file
-    with open(output_file_path, 'w') as output_file:
-        output_file.writelines(template_content)
+    try:
+        with open(template_file_path, 'r') as template_file:
+            template_content = template_file.readlines()
+        line_number = 0
+        for i, line in enumerate(template_content):
+            if 'var table =' in line:
+                line_number = i
+                break
+    except IOError:
+        print("Something wrong during open template")
+        return
+    try:
+        template_content[line_number] = f"var table ={table_json};\n"
+        # Write report file
+        with open(output_file_path, 'w') as output_file:
+            output_file.writelines(template_content)
+    except IOError:
+        print("Something wrong during writing report")
+        return
 
 
 def generate_report_filename():
@@ -143,10 +157,18 @@ def main():
                 '\\Python Professional' \
                 '\\01-Advanced basics\\01_advanced_basics\\homework\\logs' \
                 '\\nginx-access-ui.log-20170630'
-    d = create_url_dict(get_requests_time_from_logs(file_path))
+    config = parse_config(sys.argv[1:])
+
+    file_path = config["LogDirectory"]
+    report_path = config["ReportFile"]
+
+    fond_log_file = find_most_recent_log_file(file_path)
+    d = create_url_dict(get_requests_time_from_logs(f'{file_path}\{fond_log_file}'))
     result_json = dict_to_json(d)
+    print(result_json)
     insert_json_into_html(result_json, "report_template.html",
                           generate_report_filename())
+
     time_stop = datetime.now()
     print(time_stop, time_start)
 
