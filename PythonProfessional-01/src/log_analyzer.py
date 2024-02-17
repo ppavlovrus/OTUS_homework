@@ -2,12 +2,19 @@ import collections
 from datetime import datetime
 import gzip
 import json
+import logging
 import os
 import re
 import sys
 from config import parse_config
 from decimal import Decimal, ROUND_DOWN
+from tqdm import tqdm
 import statistics
+
+percent_of_log_file_not_parsed = 0
+not_parsed_treshold = 40
+
+logging.basicConfig(filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 nginx_log_pattern = re.compile(
     r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z \-]+\[.*\] '
@@ -17,27 +24,27 @@ log_file_name_pattern = re.compile(r'nginx-access-ui\.log-(\d{8})(\.gz)?$')
 
 
 def find_most_recent_log_file(directory):
-    files_in_directory = os.listdir(directory)
-    valid_files = []
+    try:
+        files_in_directory = os.listdir(directory)
+        valid_files = []
 
-    for file_name in files_in_directory:
-        if log_file_name_pattern.match(file_name):
-            valid_files.append(file_name)
+        for file_name in files_in_directory:
+            if log_file_name_pattern.match(file_name):
+                valid_files.append(file_name)
 
-    if valid_files:
-        dates = [datetime.strptime(log_file_name_pattern.match(f).group(1),
-                                   '%Y%m%d')
-                 for f in valid_files]
-        most_recent_date = max(dates)
-        most_recent_file = 'nginx-access-ui.log-' + \
-                           most_recent_date.strftime('%Y%m%d')
+        if valid_files:
+            dates = [datetime.strptime(log_file_name_pattern.match(f).group(1), '%Y%m%d') for f in valid_files]
+            most_recent_date = max(dates)
+            most_recent_file = 'nginx-access-ui.log-' + most_recent_date.strftime('%Y%m%d')
 
-        if most_recent_file + '.gz' in valid_files:
-            return most_recent_file + '.gz'
+            if most_recent_file + '.gz' in valid_files:
+                return most_recent_file + '.gz'
+            else:
+                return most_recent_file
         else:
-            return most_recent_file
-    else:
-        return None
+            return None
+    except Exception as e:
+        logging.error(f"Error occurred: {e}")
 
 
 def get_requests_time_from_logs(file_path):
@@ -46,19 +53,22 @@ def get_requests_time_from_logs(file_path):
             match_from_line = nginx_log_pattern.match(line_from_file)
             if match_from_line:
                 yield match_from_line.group(1), Decimal(match_from_line.group(2))
+
     try:
         if file_path.endswith('.gz'):
+            logging.info("Working with GZ logfile")
             with gzip.open(file_path, 'rt') as log_file:
-                yield from file_reader(log_file)
+                for result in tqdm(file_reader(log_file), desc="Processing log file", unit=" lines"):
+                    yield result
         else:
+            logging.info("Working with PLAIN logfile")
             with open(file_path, 'r') as log_file:
-                yield from file_reader(log_file)
-    except FileNotFoundError:
-        print(f"Could not find file at path: {file_path}")
-        return
-    except IOError:
-        print(f"Error opening file at path: {file_path}")
-        return
+                for result in tqdm(file_reader(log_file), desc="Processing log file", unit=" lines"):
+                    yield result
+    except FileNotFoundError as e:
+        logging.error(f"Could not find file at path: {file_path} with exception {e}")
+    except IOError as e:
+        logging.error(f"Error opening file at path: {file_path} with exception {e}")
 
 
 def create_url_dict(filtered_log: (str, Decimal)):
@@ -120,6 +130,8 @@ def dict_to_json(dictionary):
 
 
 def insert_json_into_html(json_data, template_file_path, output_file_path):
+    logging.info(f"Template file is {template_file_path}")
+    logging.info(f"Output file is {output_file_path}")
     table_json = json.dumps(json_data, indent=4)
 
     # Open the template file and read its content
@@ -131,8 +143,8 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
             if 'var table =' in line:
                 line_number = i
                 break
-    except IOError:
-        print("Something wrong during open template")
+    except IOError :
+        logging.error("Something wrong during open template")
         return
     try:
         template_content[line_number] = f"var table ={table_json};\n"
@@ -140,37 +152,39 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
         with open(output_file_path, 'w') as output_file:
             output_file.writelines(template_content)
     except IOError:
-        print("Something wrong during writing report")
+        logging.error("Something wrong during writing report")
         return
 
 
-def generate_report_filename():
+def generate_report_filename(report_path):
     now = datetime.now()
     now_string = now.strftime("%Y-%m-%d_%H-%M-%S")
     report_filename = "report_" + now_string + ".html"
-    return report_filename
+    return report_path + report_filename
 
 
 def main():
     time_start = datetime.now()
     file_path = 'C:\\Common_Folder\\Programming\\PythonProjects\\OTUS' \
                 '\\Python Professional' \
-                '\\01-Advanced basics\\01_advanced_basics\\homework\\logs' \
-                '\\nginx-access-ui.log-20170630'
+                '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\'
+    report_path="C:\\Common_Folder\\Programming\\PythonProjects\\" \
+                "OTUS_homework\\PythonProfessional-01\\src"
     config = parse_config(sys.argv[1:])
 
-    file_path = config["LogDirectory"]
-    report_path = config["ReportFile"]
+    if config.get("LogDirectory", ""):
+        file_path = config["LogDirectory"]
+    if config.get("ReportFile", ""):
+        report_path = config["ReportFile"]
 
     fond_log_file = find_most_recent_log_file(file_path)
     d = create_url_dict(get_requests_time_from_logs(f'{file_path}\{fond_log_file}'))
     result_json = dict_to_json(d)
-    print(result_json)
     insert_json_into_html(result_json, "report_template.html",
-                          generate_report_filename())
+                          generate_report_filename(report_path))
 
     time_stop = datetime.now()
-    print(time_stop, time_start)
+    logging.info(f'Program started at {time_start}, stopped at {time_stop}')
 
 
 if __name__ == "__main__":

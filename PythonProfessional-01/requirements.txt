@@ -1,7 +1,1 @@
-datetime
-json
-os
-re
-collections
-statistics
-decimal
+tqdm==4.62.3
