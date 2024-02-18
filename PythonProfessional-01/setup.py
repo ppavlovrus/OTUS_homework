@@ -6,7 +6,7 @@ setup(
     description='A log analyzer for OTUS course',
     author='Pavel Pavlov',
     author_email='ppavlovrus@gmail.com',
-    packages=find_packages(),
+    packages=['src', 'tests'],
     install_requires=['tqdm==4.62.3'],
     entry_points={
         "console_scripts": [

@@ -12,9 +12,10 @@ from tqdm import tqdm
 import statistics
 
 percent_of_log_file_not_parsed = 0
-not_parsed_treshold = 40
+not_parsed_threshold = 40
 
-logging.basicConfig(filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(filename='app.log', filemode='w', format='[%(asctime)s] %(levelname).1s %(message)s',
+                    level=logging.INFO)
 
 nginx_log_pattern = re.compile(
     r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z \-]+\[.*\] '
@@ -170,16 +171,18 @@ def main():
                 '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\'
     report_path="C:\\Common_Folder\\Programming\\PythonProjects\\" \
                 "OTUS_homework\\PythonProfessional-01\\src"
-    config = parse_config(sys.argv[1:])
+    config_from_file = parse_config(sys.argv[1:])
 
-    if config.get("LogDirectory", ""):
-        file_path = config["LogDirectory"]
-    if config.get("ReportFile", ""):
-        report_path = config["ReportFile"]
+    if config_from_file.get("LogDirectory", ""):
+        file_path = config_from_file["LogDirectory"]
+    if config_from_file.get("ReportFile", ""):
+        report_path = config_from_file["ReportFile"]
 
-    fond_log_file = find_most_recent_log_file(file_path)
-    d = create_url_dict(get_requests_time_from_logs(f'{file_path}\{fond_log_file}'))
-    result_json = dict_to_json(d)
+    found_log_file = find_most_recent_log_file(file_path)
+    if found_log_file == '':
+        logging.error("No log file in log folder found")
+    dictionary_with_result = create_url_dict(get_requests_time_from_logs(f'{file_path}\{found_log_file}'))
+    result_json = dict_to_json(dictionary_with_result)
     insert_json_into_html(result_json, "report_template.html",
                           generate_report_filename(report_path))
 
