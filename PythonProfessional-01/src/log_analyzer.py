@@ -2,20 +2,17 @@ import collections
 from datetime import datetime
 import gzip
 import json
-import logging
 import os
 import re
 import sys
 from config import parse_config
 from decimal import Decimal, ROUND_DOWN
+from logger import setup_logger
 from tqdm import tqdm
 import statistics
 
-percent_of_log_file_not_parsed = 0
-not_parsed_threshold = 40
-
-logging.basicConfig(filename='app.log', filemode='w', format='[%(asctime)s] %(levelname).1s %(message)s',
-                    level=logging.INFO)
+not_parsed_threshold = 50
+logger = setup_logger()
 
 nginx_log_pattern = re.compile(
     r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z \-]+\[.*\] '
@@ -44,32 +41,41 @@ def find_most_recent_log_file(directory):
                 return most_recent_file
         else:
             return None
-    except Exception as e:
-        logging.error(f"Error occurred: {e}")
+    except FileNotFoundError as e:
+        logger.error(f"Could not find last log file at path: {directory} with exception {e}")
+    except IOError as e:
+        logger.error(f"IOError occurred during finding las log file: {e}")
 
 
-def get_requests_time_from_logs(file_path):
-    def file_reader(f):
+def get_requests_time_from_logs(file_path, percent_of_error_lines):
+    def file_reader(f, percent_of_errors, file_size_bytes):
+        error_string_size = 0
         for line_from_file in f:
             match_from_line = nginx_log_pattern.match(line_from_file)
             if match_from_line:
                 yield match_from_line.group(1), Decimal(match_from_line.group(2))
+            else:
+                encoded = line_from_file.encode("utf-8")
+                error_string_size += len(encoded)
+                if (error_string_size*100)/file_size_bytes > percent_of_errors:
+                    logger.error("Most part of file wasn't parsed!")
 
     try:
+        file_size = os.path.getsize(file_path)
         if file_path.endswith('.gz'):
-            logging.info("Working with GZ logfile")
+            logger.info("Working with GZ logfile")
             with gzip.open(file_path, 'rt') as log_file:
-                for result in tqdm(file_reader(log_file), desc="Processing log file", unit=" lines"):
+                for result in tqdm(file_reader(log_file, percent_of_error_lines, file_size), desc="Processing log file", unit=" lines"):
                     yield result
         else:
-            logging.info("Working with PLAIN logfile")
+            logger.info("Working with PLAIN logfile")
             with open(file_path, 'r') as log_file:
-                for result in tqdm(file_reader(log_file), desc="Processing log file", unit=" lines"):
+                for result in tqdm(file_reader(log_file, percent_of_error_lines, file_size), desc="Processing log file", unit=" lines"):
                     yield result
     except FileNotFoundError as e:
-        logging.error(f"Could not find file at path: {file_path} with exception {e}")
+        logger.error(f"Could not find file at path: {file_path} with exception {e}")
     except IOError as e:
-        logging.error(f"Error opening file at path: {file_path} with exception {e}")
+        logger.error(f"Error opening file at path: {file_path} with exception {e}")
 
 
 def create_url_dict(filtered_log: (str, Decimal)):
@@ -131,11 +137,10 @@ def dict_to_json(dictionary):
 
 
 def insert_json_into_html(json_data, template_file_path, output_file_path):
-    logging.info(f"Template file is {template_file_path}")
-    logging.info(f"Output file is {output_file_path}")
+    logger.info(f"Template file is {template_file_path}")
+    logger.info(f"Output file is {output_file_path}")
     table_json = json.dumps(json_data, indent=4)
 
-    # Open the template file and read its content
     try:
         with open(template_file_path, 'r') as template_file:
             template_content = template_file.readlines()
@@ -145,7 +150,7 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
                 line_number = i
                 break
     except IOError :
-        logging.error("Something wrong during open template")
+        logger.error("Something wrong during open template")
         return
     try:
         template_content[line_number] = f"var table ={table_json};\n"
@@ -153,7 +158,7 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
         with open(output_file_path, 'w') as output_file:
             output_file.writelines(template_content)
     except IOError:
-        logging.error("Something wrong during writing report")
+        logger.error("Something wrong during writing report")
         return
 
 
@@ -166,28 +171,25 @@ def generate_report_filename(report_path):
 
 def main():
     time_start = datetime.now()
-    file_path = 'C:\\Common_Folder\\Programming\\PythonProjects\\OTUS' \
-                '\\Python Professional' \
-                '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\'
-    report_path="C:\\Common_Folder\\Programming\\PythonProjects\\" \
-                "OTUS_homework\\PythonProfessional-01\\src"
-    config_from_file = parse_config(sys.argv[1:])
 
-    if config_from_file.get("LogDirectory", ""):
-        file_path = config_from_file["LogDirectory"]
-    if config_from_file.get("ReportFile", ""):
-        report_path = config_from_file["ReportFile"]
+    configuration = parse_config(sys.argv[1:])
 
-    found_log_file = find_most_recent_log_file(file_path)
-    if found_log_file == '':
-        logging.error("No log file in log folder found")
-    dictionary_with_result = create_url_dict(get_requests_time_from_logs(f'{file_path}\{found_log_file}'))
-    result_json = dict_to_json(dictionary_with_result)
-    insert_json_into_html(result_json, "report_template.html",
-                          generate_report_filename(report_path))
+    try:
+        found_log_file = find_most_recent_log_file(configuration['LogDirectory'])
+        if found_log_file == '':
+            logger.error("No log file in log folder found")
+        else:
+            dictionary_with_result = create_url_dict(get_requests_time_from_logs(f'{configuration["LogDirectory"]}'
+                                                                                 f'\{found_log_file}',
+                                                                                 not_parsed_threshold))
+            result_json = dict_to_json(dictionary_with_result)
+            insert_json_into_html(result_json, "report_template.html",
+                                  generate_report_filename(configuration["ReportFile"]))
 
-    time_stop = datetime.now()
-    logging.info(f'Program started at {time_start}, stopped at {time_stop}')
+            time_stop = datetime.now()
+            logger.info(f'Program started at {time_start}, stopped at {time_stop}')
+    except Exception as e:
+        logger.exception(e)
 
 
 if __name__ == "__main__":

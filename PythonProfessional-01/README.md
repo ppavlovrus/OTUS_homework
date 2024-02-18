@@ -23,4 +23,10 @@
 		[DEFAULT]
 		LogDirectory = <path_to_your_log_file>
 		ReportFile = <path_to_your_report_files>
+
+4. ## Running tests
+    For running test please use following command in project folder^
+    ```shell
+   python -m unittest tests.test_log_analyzer.TestLogAnalyzer
+   ```
 	
