@@ -19,6 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Set up Python path
+      run: echo "PYTHONPATH=$PWD" >> $GITHUB\_ENV
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
@@ -36,4 +38,5 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with unittest
       run: |
-        python -m unittest tests.test_log_analyzer.TestLogAnalyzer
+        #python -m unittest tests.test_log_analyzer.TestLogAnalyzer
+        python -m unittest discover tests
