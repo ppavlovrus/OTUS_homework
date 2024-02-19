@@ -51,7 +51,7 @@ class TestLogAnalyzer(unittest.TestCase):
         actual_output = dict_to_json(self.expected_url_dict)
         self.assertEqual(self.expected_json_data, actual_output)
 
-    @patch("log_analyzer.datetime")
+    @patch("src.log_analyzer.datetime")
     def test_generate_report_filename(self, mock_datetime):
         mock_datetime.now.return_value.strftime.return_value = '2022-04-01_00-00-00'
         result = generate_report_filename('/path/to/report/')
@@ -59,8 +59,8 @@ class TestLogAnalyzer(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     @patch('os.listdir')
-    @patch('log_analyzer.log_file_name_pattern')
-    @patch('log_analyzer.datetime')
+    @patch('src.log_analyzer.log_file_name_pattern')
+    @patch('src.log_analyzer.datetime')
     def test_find_most_recent_log_file(self, mock_datetime, mock_pattern, mock_listdir):
         mock_listdir.return_value = ['nginx-access-ui.log-20230215',
                                      'nginx-access-ui.log-20230214',
