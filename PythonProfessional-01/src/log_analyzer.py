@@ -5,7 +5,7 @@ import json
 import os
 import re
 import sys
-from config import parse_config
+from src.config import parse_config
 from decimal import Decimal, ROUND_DOWN
 from logger import setup_logger
 from tqdm import tqdm
