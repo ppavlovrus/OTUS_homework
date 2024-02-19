@@ -6,10 +6,10 @@ import os
 def parse_config(argv=None):
     config = {
         'LogDirectory': 'C:\\Common_Folder\\Programming\\PythonProjects\\OTUS'
-                     '\\Python Professional'
-                     '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\',
+                        '\\Python Professional'
+                        '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\',
         'ReportFile': 'C:\\Common_Folder\\Programming\\PythonProjects\\'
-                       'OTUS_homework\\PythonProfessional-01\\src',
+                      'OTUS_homework\\PythonProfessional-01\\src',
         "ProcessedFilesStorage": 'processed_Files.txt'
     }
     parser = argparse.ArgumentParser(description="Reads config from file")

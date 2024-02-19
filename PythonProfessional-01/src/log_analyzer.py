@@ -193,7 +193,7 @@ def main():
             else:
                 dictionary_with_result = create_url_dict(
                     get_requests_time_from_logs(f'{configuration["LogDirectory"]}'
-                                                f'\{found_log_file}',
+                                                f'{found_log_file}',
                                                 not_parsed_threshold,
                                                 configuration['ProcessedFilesStorage']))
                 result_json = dict_to_json(dictionary_with_result)
