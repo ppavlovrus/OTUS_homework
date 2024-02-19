@@ -9,7 +9,8 @@ def parse_config(argv=None):
                      '\\Python Professional'
                      '\\01-Advanced basics\\01_advanced_basics\\homework\\logs\\',
         'ReportFile': 'C:\\Common_Folder\\Programming\\PythonProjects\\'
-                       'OTUS_homework\\PythonProfessional-01\\src'
+                       'OTUS_homework\\PythonProfessional-01\\src',
+        "ProcessedFilesStorage": 'processed_Files.txt'
     }
     parser = argparse.ArgumentParser(description="Reads config from file")
     parser.add_argument('--config',
@@ -24,7 +25,7 @@ def parse_config(argv=None):
         config.read(args.config)
         log_directory = config.get('DEFAULT', 'LogDirectory')
         report_file = config.get('DEFAULT', 'ReportFile')
-
-        return {"LogDirectory": log_directory, "ReportFile": report_file}
+        processed_files = config.get('DEFAULT', 'ProcessedFilesStorage')
+        return {"LogDirectory": log_directory, "ReportFile": report_file, "ProcessedFilesStorage": processed_files}
     else:
         return config

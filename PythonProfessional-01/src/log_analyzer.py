@@ -39,15 +39,14 @@ def find_most_recent_log_file(directory):
                 return most_recent_file + '.gz'
             else:
                 return most_recent_file
-        else:
-            return None
+
     except FileNotFoundError as e:
         logger.error(f"Could not find last log file at path: {directory} with exception {e}")
     except IOError as e:
         logger.error(f"IOError occurred during finding las log file: {e}")
 
 
-def get_requests_time_from_logs(file_path, percent_of_error_lines):
+def get_requests_time_from_logs(file_path, percent_of_error_lines, processed_files_storage):
     def file_reader(f, percent_of_errors, file_size_bytes):
         error_string_size = 0
         for line_from_file in f:
@@ -57,21 +56,18 @@ def get_requests_time_from_logs(file_path, percent_of_error_lines):
             else:
                 encoded = line_from_file.encode("utf-8")
                 error_string_size += len(encoded)
-                if (error_string_size*100)/file_size_bytes > percent_of_errors:
-                    logger.error("Most part of file wasn't parsed!")
+        if (error_string_size * 100) / file_size_bytes > percent_of_errors:
+            logger.error("Most part of file wasn't parsed!")
 
     try:
+        with open(processed_files_storage, 'a') as processed:
+            processed.write(file_path)
         file_size = os.path.getsize(file_path)
-        if file_path.endswith('.gz'):
-            logger.info("Working with GZ logfile")
-            with gzip.open(file_path, 'rt') as log_file:
-                for result in tqdm(file_reader(log_file, percent_of_error_lines, file_size), desc="Processing log file", unit=" lines"):
-                    yield result
-        else:
-            logger.info("Working with PLAIN logfile")
-            with open(file_path, 'r') as log_file:
-                for result in tqdm(file_reader(log_file, percent_of_error_lines, file_size), desc="Processing log file", unit=" lines"):
-                    yield result
+        opener = gzip.open(file_path, 'rt') if file_path.endswith('.gz') else open(file_path, 'r')
+        with opener as log_file:
+            for result in tqdm(file_reader(log_file, percent_of_error_lines, file_size), desc="Processing log file",
+                               unit=" lines"):
+                yield result
     except FileNotFoundError as e:
         logger.error(f"Could not find file at path: {file_path} with exception {e}")
     except IOError as e:
@@ -149,7 +145,7 @@ def insert_json_into_html(json_data, template_file_path, output_file_path):
             if 'var table =' in line:
                 line_number = i
                 break
-    except IOError :
+    except IOError:
         logger.error("Something wrong during open template")
         return
     try:
@@ -169,6 +165,19 @@ def generate_report_filename(report_path):
     return report_path + report_filename
 
 
+def check_file_already_processed(file_path, processed_files_path):
+    try:
+        with open(processed_files_path, 'r') as processed_files:
+            contents = processed_files.read()
+            if file_path in contents:
+                return True
+            else:
+                return False
+    except IOError:
+        logger.error("Error during open processed files storage")
+        return
+
+
 def main():
     time_start = datetime.now()
 
@@ -179,15 +188,20 @@ def main():
         if found_log_file == '':
             logger.error("No log file in log folder found")
         else:
-            dictionary_with_result = create_url_dict(get_requests_time_from_logs(f'{configuration["LogDirectory"]}'
-                                                                                 f'\{found_log_file}',
-                                                                                 not_parsed_threshold))
-            result_json = dict_to_json(dictionary_with_result)
-            insert_json_into_html(result_json, "report_template.html",
-                                  generate_report_filename(configuration["ReportFile"]))
+            if check_file_already_processed(found_log_file, configuration['ProcessedFilesStorage']):
+                logger.info(f"File {found_log_file} already processed, nothing to do, exit")
+            else:
+                dictionary_with_result = create_url_dict(
+                    get_requests_time_from_logs(f'{configuration["LogDirectory"]}'
+                                                f'\{found_log_file}',
+                                                not_parsed_threshold,
+                                                configuration['ProcessedFilesStorage']))
+                result_json = dict_to_json(dictionary_with_result)
+                insert_json_into_html(result_json, "report_template.html",
+                                      generate_report_filename(configuration["ReportFile"]))
 
-            time_stop = datetime.now()
-            logger.info(f'Program started at {time_start}, stopped at {time_stop}')
+                time_stop = datetime.now()
+                logger.info(f'Program started at {time_start}, stopped at {time_stop}')
     except Exception as e:
         logger.exception(e)
 
