@@ -3,7 +3,7 @@ import logging
 import unittest
 from decimal import Decimal
 from datetime import datetime
-from log_analyzer import get_requests_time_from_logs, create_url_dict, \
+from src.log_analyzer import get_requests_time_from_logs, create_url_dict, \
     dict_to_json, generate_report_filename, find_most_recent_log_file, \
     check_file_already_processed
 from unittest.mock import patch, mock_open
