@@ -38,6 +38,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with unittest
       run: |
-        #python -m unittest tests.test_log_analyzer.TestLogAnalyzer
         echo $(pwd)
-        python -m unittest discover tests
+        cd PythonProfessional-01
+        python -m unittest tests.test_log_analyzer.TestLogAnalyzer
+        #python -m unittest discover tests
