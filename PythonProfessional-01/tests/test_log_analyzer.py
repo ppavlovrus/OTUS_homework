@@ -3,7 +3,7 @@ import logging
 import unittest
 from decimal import Decimal
 from datetime import datetime
-from src.log_analyzer import get_requests_time_from_logs, create_url_dict, \
+from log_analyzer import get_requests_time_from_logs, create_url_dict, \
     dict_to_json, generate_report_filename, find_most_recent_log_file, \
     check_file_already_processed
 from unittest.mock import patch, mock_open
@@ -35,7 +35,7 @@ class TestLogAnalyzer(unittest.TestCase):
     ]
 
     def test_get_requests_time_from_logs(self):
-        file_path = "nginx-access-ui.log-20230215"
+        file_path = "tests/nginx-access-ui.log-20230215"
         expected_output = list(self.sample_log)
         actual_output = list(
             get_requests_time_from_logs(file_path,
